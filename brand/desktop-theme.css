@@ -1,0 +1,9 @@
+
+/* ---- NiX Studio theme (appended by brand/apply.mjs): the same earth tones as the app, brand/theme.css ---- */
+:root {
+  --night: #15110d; --panel: #201a14; --hairline: #40332a; --edge: #8c7862;
+  --paper: #efe6d6; --soft: #d6c9b4; --mute: #ab9c88; --violet: #d99a4a; --violet-hi: #e9c27d;
+  --grad: linear-gradient(90deg, #b9722a, #a9512b);
+}
+body { background: #1a1510; }
+.track { background: #2e251c; }

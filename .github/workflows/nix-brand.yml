@@ -1,0 +1,36 @@
+name: NiX brand
+
+# Checks the brand layer (brand/) on every change and after every merge from upstream: the rules still find
+# their lines, the frontend builds with the brand, and the upstream name is gone from the build, credit aside.
+on:
+  push:
+    branches: ["nix/**"]
+  pull_request:
+    branches: ["nix/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-brand-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Brand check + branded build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: node brand/check.mjs
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: node brand/check.mjs --dist frontend/dist
+      - name: The in-place brand applies to the desktop and script files
+        run: node brand/apply.mjs

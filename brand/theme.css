@@ -1,0 +1,28 @@
+/*
+ * NiX Studio theme: earth tones, brass and copper. Loaded after upstream's style.css (see vite-plugin.mjs), it
+ * only redefines the tokens of upstream's @theme block, so every component follows without being edited.
+ *
+ * Contrast, checked against bg / panel / panel-2:
+ *   text      15.2 / 13.9 / 12.6     text-dim  7.0 / 6.4 / 5.9     accent (light text) 11.2 / 10.2 / 9.3
+ *   accent1    4.9 /  4.5 /  4.1 as text; white on accent1 3.8, on accent2 5.2 (upstream: 4.0 and 3.5)
+ *   slider track 4.1 on panel (upstream 3.3)
+ */
+:root {
+  --color-bg: #15110d;          /* espresso */
+  --color-panel: #201a14;       /* dark walnut */
+  --color-panel-2: #2a2219;
+  --color-border: #40332a;      /* aged leather */
+  --color-slider-track: #8c7862;
+  --color-text: #efe6d6;        /* parchment */
+  --color-text-dim: #ab9c88;
+  --color-accent1: #b9722a;     /* brass */
+  --color-accent2: #a9512b;     /* copper */
+  --color-accent: #e9c27d;      /* polished brass, for small text */
+  --color-status-running: #5fc4b4;  /* verdigris, in place of sky blue */
+}
+
+/* Text selection and the caret pick up the brass too. */
+::selection {
+  background: color-mix(in srgb, var(--color-accent1) 45%, transparent);
+  color: var(--color-text);
+}

@@ -1,0 +1,55 @@
+name: NiX upstream sync
+
+# Once a week (and on demand): merges upstream's master into a sync branch and opens a pull request against the
+# product branch, where "NiX brand" then checks that the brand layer still holds.
+#
+# Needs a repository secret SYNC_TOKEN: a token with contents, pull-requests and workflows write access. The
+# built-in token cannot push commits that touch .github/workflows, and upstream's history does.
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Product branch to bring upstream into
+        default: nix/main
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      BASE: ${{ inputs.base || 'nix/main' }}
+      GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+    steps:
+      - name: A token is configured
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::error::Add the SYNC_TOKEN secret (see the comment at the top of this workflow)"; exit 1; fi
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BASE }}
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B nix/sync-upstream
+          before=$(git rev-parse HEAD)
+          # a failing brand check must not stop the pull request: it is what the reviewer needs to see
+          brand/sync-upstream.sh || echo "check=failed" >> "$GITHUB_OUTPUT"
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then echo "::error::upstream does not merge cleanly: run brand/sync-upstream.sh locally"; exit 1; fi
+          echo "commits=$(git rev-list --count "$before"..HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Open or update the pull request
+        if: steps.merge.outputs.commits != '0'
+        run: |
+          git push --force-with-lease origin nix/sync-upstream
+          body="Merges the latest upstream master. Brand check: ${{ steps.merge.outputs.check || 'passed' }}."
+          gh pr view nix/sync-upstream --json state --jq .state 2>/dev/null | grep -q OPEN \
+            || gh pr create --base "$BASE" --head nix/sync-upstream --title "Sync with upstream" --body "$body"
