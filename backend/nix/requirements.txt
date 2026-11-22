@@ -1,0 +1,3 @@
+# What the cloud server needs on top of upstream's backend (pip install -r backend/nix/requirements.txt).
+-r ../requirements.txt
+cryptography>=44

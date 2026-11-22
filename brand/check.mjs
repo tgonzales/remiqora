@@ -41,14 +41,18 @@ if (distArg !== -1) {
   else {
     const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)])
     let named = 0
+    let credited = false
     for (const file of walk(dist).filter((f) => TEXT_FILE.test(f))) {
       const text = fs.readFileSync(file, 'utf8')
       if (text.includes(brand.name)) named++
+      if (text.includes(`based on ${brand.upstreamName}`)) credited = true
       for (const m of text.matchAll(NAME_RULE)) {
         const around = text.slice(Math.max(0, m.index - 40), m.index + 60).replace(/\s+/g, ' ')
         if (!allowedUpstreamMentions.some((re) => re.test(around))) problems.push(`${path.relative(root, file)}: "${brand.upstreamName}" is still visible: …${around}…`)
       }
     }
+    // the MIT licence asks for the credit; losing it is as much a defect as the old name showing
+    if (!credited) problems.push(`--dist: the credit "based on ${brand.upstreamName}" is missing from the build`)
     if (!named) problems.push(`--dist: "${brand.name}" appears nowhere in ${dist}: the brand was not applied to this build`)
   }
 }

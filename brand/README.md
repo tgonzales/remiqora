@@ -26,11 +26,14 @@ keys and i18n keys keep their upstream names.
 | `apply.mjs` | Applies it, in place, to what Vite does not build: desktop shell, installer config, backend strings, scripts. CI only. |
 | `check.mjs` | Fails when a rule no longer finds its line, or a build still shows the upstream name. |
 | `sync-upstream.sh` | Merges upstream and runs the check. |
+| `auth/gate.ts`, `cloud/`, `../backend/nix/` | Sign-in with Adaflow for the cloud server; off everywhere else. See [cloud/README.md](cloud/README.md). |
+| `package.json` | The layer's own dependencies (`@adaflow/sdk`), apart from upstream's lockfile. Run `npm ci` here once. |
 
 ## Everyday use
 
 ```sh
-cd frontend && npm run dev          # the app as NiX Studio; nothing to do
+(cd brand && npm ci)                # once: the layer's own dependencies
+cd frontend && npm run dev          # the app as NiX Studio; nothing else to do
 node brand/check.mjs                # after a merge from upstream
 node brand/check.mjs --dist frontend/dist   # after a build
 ```

@@ -1,0 +1,10 @@
+{
+  "name": "nix-brand",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Dependencies of the NiX Studio layer, kept apart from frontend/package.json so upstream's lockfile merges untouched",
+  "dependencies": {
+    "@adaflow/sdk": "^0.8.0"
+  }
+}
