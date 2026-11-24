@@ -1,0 +1,22 @@
+# A stand-in for the ACE-Step folder, for a studio whose ACE-Step runs on a RunPod pod.
+#
+# The studio starts ACE-Step by running `uv run acestep-api --host … --port …` in ACE_STEP_DIR and waits for
+# http://127.0.0.1:<port>/health. With ACE_STEP_DIR pointing here, that command is this project's script: it
+# starts the pod and the engine and holds an SSH tunnel on that port (brand/scripts/runpod-models.py connect).
+# No upstream file is edited for it.
+[project]
+name = "nix-remote-ace"
+version = "0.1.0"
+description = "Runs ACE-Step on a RunPod pod behind the studio's own start and stop"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+acestep-api = "nix_remote_ace:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nix_remote_ace"]

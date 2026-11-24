@@ -27,6 +27,7 @@ keys and i18n keys keep their upstream names.
 | `check.mjs` | Fails when a rule no longer finds its line, or a build still shows the upstream name. |
 | `sync-upstream.sh` | Merges upstream and runs the check. |
 | `auth/gate.ts`, `cloud/`, `../backend/nix/` | Sign-in with Adaflow for the cloud server; off everywhere else. See [cloud/README.md](cloud/README.md). |
+| `scripts/` | ACE-Step on a RunPod pod for a studio that runs locally: deploy, start/stop, tunnel. See [scripts/README.md](scripts/README.md). |
 | `package.json` | The layer's own dependencies (`@adaflow/sdk`), apart from upstream's lockfile. Run `npm ci` here once. |
 
 ## Everyday use

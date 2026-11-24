@@ -1,0 +1,6 @@
+.state.json
+.known_hosts
+.venv/
+uv.lock
+__pycache__/
+*.egg-info/
