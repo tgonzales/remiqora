@@ -35,5 +35,29 @@ if [[ -z "$kind" ]]; then
   kind="pinned"
 fi
 
+# The models live on a RunPod global volume, a network filesystem that refuses to set a file's times or mode
+# (EPERM). ACE-Step copies files into the checkpoints with shutil.copy2, which then fails after the data was
+# copied. A .pth file loaded at interpreter start makes copying metadata best-effort for that error only.
+site="$("$ACE_DIR/.venv/bin/python" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
+cat > "$site/nix_volume_fix.py" <<'PY'
+"""NiX: on a RunPod network volume, copying a file's times or mode fails with EPERM; the data is already copied."""
+import errno
+import shutil
+
+def _tolerant(original):
+    def wrapper(*args, **kwargs):
+        try:
+            return original(*args, **kwargs)
+        except PermissionError as exc:
+            if exc.errno != errno.EPERM:
+                raise
+    return wrapper
+
+shutil.copystat = _tolerant(shutil.copystat)
+shutil.copymode = _tolerant(shutil.copymode)
+PY
+echo "import nix_volume_fix" > "$site/nix_volume_fix.pth"
+"$ACE_DIR/.venv/bin/python" -c 'import shutil; assert shutil.copystat.__name__ == "wrapper"'
+
 printf '%s\n%s\n' "$(git -C "$ACE_DIR" rev-parse HEAD)" "$kind" > /opt/nix/ace-version
 say "ACE-Step ready: $(head -c 12 /opt/nix/ace-version) [$kind]"

@@ -20,7 +20,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable
 
 HOP_BY_HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers",
-              "transfer-encoding", "upgrade", "host", "authorization", "content-length"}
+              "transfer-encoding", "upgrade", "host", "authorization", "content-length",
+              # RunPod's edge (Cloudflare) compresses for any client that asks, e.g. brotli for the browser's
+              # header; the studio's backend cannot decode brotli and would pass the raw bytes on. Without
+              # this header http.client asks for identity, the plain body a local ACE-Step would send.
+              "accept-encoding"}
 COLD_START_SECONDS = 900
 NO_WORKER = b"no workers available"
 
