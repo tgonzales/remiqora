@@ -1,6 +1,55 @@
 # ACE-Step on RunPod, for a studio on your own computer
 
-The studio (NiX Studio on `localhost`) stays on your machine; only the engine runs on a rented GPU. Two scripts:
+The studio (NiX Studio on `localhost`) stays on your machine; only the engine runs on a rented GPU. There are two
+ways to rent it:
+
+- **Serverless (recommended).** A RunPod Serverless endpoint: a GPU worker starts when the studio sends a request
+  and stops a few minutes after the last one. You pay by the second while a worker runs, and nothing else but the
+  models' storage. RunPod picks whichever GPU is free among several types, in any data center.
+- **A pod.** A GPU machine of your own, billed by the hour while it is on. Its disk is tied to one physical
+  machine: once it is stopped, that machine's GPU can be rented by someone else, and the pod cannot start again
+  until it is free ("There are not enough free GPUs on the host machine").
+
+## Serverless
+
+`runpod-serverless.py` creates a global volume (the models, about 10 GB, downloaded once) and a load-balancing
+endpoint whose URL forwards HTTP straight to ACE-Step's own API inside the worker, behind your RunPod API key.
+The worker image (`ghcr.io/<owner>/nix-ace-step`) is built by `.github/workflows/nix-ace-image.yml` on every push
+that changes `brand/scripts/runpod/serverless/` or the ACE-Step patch, or by hand from the Actions tab. The package
+must be public (GitHub → Packages → nix-ace-step → Package settings) or RunPod cannot pull it.
+
+```sh
+export RUNPOD_API_KEY=...
+python brand/scripts/runpod-serverless.py deploy     # asks before creating; then starts a worker once (models download)
+```
+
+Then put these two lines in `backend/.env` and start the studio with `RUNPOD_API_KEY` set:
+
+```
+ACE_STEP_DIR=<repo>/brand/scripts/runpod/shim/ace-step
+NIX_RUNPOD_MODE=serverless
+```
+
+Starting ACE-Step in the studio wakes a worker (a cold start: one to a few minutes) and serves the endpoint on
+`127.0.0.1:8001`. `/health` is answered on this computer, so the studio's own checks do not keep a GPU awake;
+everything else goes to RunPod. A worker stops by itself `--idle-seconds` (300) after the last request, so the
+first generation after a pause waits for a cold start again. Choosing another DiT or LM in the studio changes the
+endpoint's settings and starts a new worker with them.
+
+```sh
+python brand/scripts/runpod-serverless.py status     # the endpoint, its workers and their GPUs
+python brand/scripts/runpod-serverless.py logs       # the newest worker's log (--follow to keep reading)
+python brand/scripts/runpod-serverless.py destroy    # deletes the endpoint (--volume: and the models)
+```
+
+Limits: RunPod's load balancer carries at most 30 MB per request or response, so a long WAV can fail to download
+(MP3, the default, is far smaller); a request waits at most two minutes for a worker, after which the local
+stand-in sends it again until one has started. The endpoint has at most one worker, because ACE-Step keeps its
+tasks and output files inside the worker: that also means a result not downloaded before the worker stops is lost.
+
+## A pod
+
+Two scripts:
 
 | Script | What it does |
 |---|---|
@@ -9,7 +58,7 @@ The studio (NiX Studio on `localhost`) stays on your machine; only the engine ru
 
 They need Python 3.10+, the `ssh` command and an SSH key (`ssh-keygen -t ed25519` makes one). No other install.
 
-## Set up, once
+### Set up, once
 
 ```sh
 export RUNPOD_API_KEY=...                    # RunPod console → Settings → API Keys (pods: read and write)
@@ -24,7 +73,7 @@ prints to `backend/.env`:
 ACE_STEP_DIR=<repo>/brand/scripts/runpod/shim/ace-step
 ```
 
-## Use
+### Use
 
 Start the studio as usual and start ACE-Step in it. Behind that button the pod is started, the engine is
 started, and an SSH tunnel makes it answer on `127.0.0.1:8001`, exactly where the studio expects a local
@@ -40,7 +89,7 @@ python brand/scripts/runpod-models.py model start ace    # and stop, status, log
 python brand/scripts/runpod-models.py pod terminate      # deletes the pod and its volume
 ```
 
-## What it costs, and what stops it
+### What it costs, and what stops it
 
 - A running pod is billed by the hour **whether or not the engine is running**. Stopping ACE-Step in the studio
   frees the GPU memory; it does not stop the bill.
@@ -50,7 +99,7 @@ python brand/scripts/runpod-models.py pod terminate      # deletes the pod and i
 - Set `NIX_RUNPOD_STOP_POD=1` before starting the studio to stop the pod every time ACE-Step is stopped in it.
   Cheaper, but every start is then a cold start.
 
-## "Always the latest version"
+### "Always the latest version"
 
 Every run of `runpod-deploy.py` tries ACE-Step's newest commit. The studio talks to ACE-Step through routes that
 its own patch (`external/patches/ace-step.patch`) adds, so a commit is kept only if the patch applies to it, its
@@ -60,7 +109,7 @@ environment installs and its API server answers. Otherwise the commit the studio
 The check is that the API starts, not that a song comes out right: a new ACE-Step commit can pass it and still
 behave differently. If generation misbehaves after an update, run `runpod-deploy.py --ace pinned`.
 
-## Security
+### Security
 
 Nothing on the pod is public except its SSH port. The engine listens on `127.0.0.1` inside the pod and is
 reached only through the tunnel, with your SSH key. The pod's host key is learned on the first connection after
@@ -71,7 +120,8 @@ each start (a stopped pod comes back with a new key and address) and checked for
 The studio still looks at this computer for some things, so with a remote ACE-Step:
 
 - The Models page shows ACE-Step's models as not installed, and its download and delete buttons act on this
-  computer, not the pod. The pod downloads the models it needs by itself.
+  computer, not RunPod. Do not press download there: it fetches about 10 GB onto this computer for nothing. The
+  pod or the Serverless worker downloads the models it needs by itself.
 - Features the studio enables only when it finds the base or XL model files locally (the AI arranger's base
   model, XL) stay off.
 - LoRA training and datasets use local folders and are not connected to the pod.
@@ -82,7 +132,13 @@ The studio still looks at this computer for some things, so with a remote ACE-St
 
 Against stand-ins for RunPod's API, for `ssh` and for ACE-Step: creating and reusing the pod, the fallback to
 the tested commit (patch does not apply; API does not start), start/stop of pod and engine, the tunnel, the idle
-guard, and the real studio backend starting and stopping "ACE-Step" through the stand-in project. **Not yet run
-against a real RunPod account or a real GPU**: expect to adjust details (image, timings) on the first real run.
+guard, and the real studio backend starting and stopping "ACE-Step" through the stand-in project. The pod path
+has since been run on a real RunPod A40 (install and API check). Pod creation through the API was refused for
+lack of capacity every time on that day; a pod queued in the console ("Deploy when available") and adopted with
+`NIX_RUNPOD_POD_ID=<id> runpod-deploy.py` worked.
+
+Serverless: the local stand-in (`runpod/proxy.py`) against a fake load balancer (cold-start retries, local
+`/health`, request bodies, streamed audio, errors passed through) and the worker's health answer (204 while
+ACE-Step loads, 200 once it answers).
 
 The scripts use RunPod's REST API v2 (`api.runpod.io/v2`); v1 was retired in November 2026.

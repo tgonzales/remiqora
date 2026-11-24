@@ -1,4 +1,4 @@
-# A stand-in for the ACE-Step folder, for a studio whose ACE-Step runs on a RunPod pod.
+# A stand-in for the ACE-Step folder, for a studio whose ACE-Step runs on RunPod (a pod, or Serverless with NIX_RUNPOD_MODE=serverless).
 #
 # The studio starts ACE-Step by running `uv run acestep-api --host … --port …` in ACE_STEP_DIR and waits for
 # http://127.0.0.1:<port>/health. With ACE_STEP_DIR pointing here, that command is this project's script: it
